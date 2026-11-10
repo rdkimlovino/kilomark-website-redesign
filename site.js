@@ -8,7 +8,9 @@ window.KM_CONFIG = {
   WEBHOOK_URL: "https://h.albato.com/wh/38/1lfvuqt/iqItgrE5uVlLm-XebYnifDmrL7keZWht4d-_taczTyI/",
   // Strategy call (after a discovery call): its own TidyCal page + Albato webhook
   STRATEGY_BOOKING_URL: "https://schedule.kilomark.ca/strategy-call",
-  STRATEGY_WEBHOOK_URL: "https://h.albato.com/wh/38/1lfvuqt/9sOIWxChW-HkVhlOdy7884oNx7vmLmy--HSPdq1Q-Uk/"
+  STRATEGY_WEBHOOK_URL: "https://h.albato.com/wh/38/1lfvuqt/9sOIWxChW-HkVhlOdy7884oNx7vmLmy--HSPdq1Q-Uk/",
+  FREE_REDESIGN_BOOKING_URL: "https://schedule.kilomark.ca/free-website-redesign-call",
+  FREE_REDESIGN_WEBHOOK_URL: "https://h.albato.com/wh/38/1lfvuqt/YbyXz_W8MyO2wa1NFmHMYzGhKDN6jgYVpmOAcH3GqPk/",
 };
 /* ─────────────────────────────────────────────────────────── */
 
@@ -121,6 +123,7 @@ window.KM_CONFIG = {
       <div class="field"><label for="km-s-city">City and province</label><input id="km-s-city" name="city" type="text" placeholder="e.g. Surrey, BC" required></div>`}
   ];
   function activeSteps(){return source==='strategy'?STRATEGY_STEPS:STEPS}
+  function paneMode(){return source==='strategy'?'strategy':'discovery'} // free-redesign uses the discovery steps
   function updateStrategyPrices(){ // program cards follow the picked billing (monthly vs annual)
     const b=modal.querySelector('[name=billing]:checked');
     const annual=b&&b.value==='Annual';
@@ -160,7 +163,7 @@ window.KM_CONFIG = {
   function show(i){
     if(i<0)i=0; step=i;
     const steps=activeSteps();
-    modal.querySelectorAll('[data-step]').forEach(el=>{el.hidden=el.dataset.step==='done'?i!=='done':(el.dataset.mode!==source||String(el.dataset.step)!==String(i))});
+    modal.querySelectorAll('[data-step]').forEach(el=>{el.hidden=el.dataset.step==='done'?i!=='done':(el.dataset.mode!==paneMode()||String(el.dataset.step)!==String(i))});
     const done=i==='done';
     modal.querySelector('#km-title').textContent=done?'You\'re almost booked':steps[i].title;
     modal.querySelector('#km-note').textContent=done?'':`Step ${i+1} of ${steps.length} · ${steps[i].note}`;
@@ -169,16 +172,16 @@ window.KM_CONFIG = {
     modal.querySelector('#km-back').style.visibility=i===0?'hidden':'visible';
     modal.querySelector('#km-next').textContent=i===steps.length-1?'See available times':'Next';
     if(done){
-      const s=source==='strategy';
-      modal.querySelector('#km-done-sub').textContent=s?'Your answers are in. Choose a 30-minute slot for your strategy call. On the call we\'ll cover:':'Your answers are in. Choose a 30-minute slot for your discovery call. On the call we\'ll cover:';
-      modal.querySelector('#km-done-list').innerHTML=s?'<li>Final review of your selected program</li><li>Your 90-day implementation plan</li><li>Timeline, start date and next steps</li>':'<li>Your goals and what\'s getting in the way</li><li>A quick look at what you\'ve tried so far</li><li>Clear next steps, whether or not we work together</li>';
-      modal.querySelector('#km-book').textContent=s?'Choose my strategy call time':'Choose my call time';
+      const s=source==='strategy', f=source==='free-redesign';
+      modal.querySelector('#km-done-sub').textContent=s?'Your answers are in. Choose a 30-minute slot for your strategy call. On the call we\'ll cover:':f?'Your answers are in. Choose a 30-minute slot for your free website redesign call. On the call we\'ll cover:':'Your answers are in. Choose a 30-minute slot for your discovery call. On the call we\'ll cover:';
+      modal.querySelector('#km-done-list').innerHTML=s?'<li>Final review of your selected program</li><li>Your 90-day implementation plan</li><li>Timeline, start date and next steps</li>':f?'<li>Confirm your 10 km area is still open</li><li>Review your qualifier result and redesign scope</li><li>Clear next steps for your free redesign</li>':'<li>Your goals and what\'s getting in the way</li><li>A quick look at what you\'ve tried so far</li><li>Clear next steps, whether or not we work together</li>';
+      modal.querySelector('#km-book').textContent=s?'Choose my strategy call time':f?'Choose my free redesign call time':'Choose my call time';
     }
-    const first=modal.querySelector(i==='done'?`[data-step="done"] a`:`[data-step="${i}"][data-mode="${source}"] input, [data-step="${i}"][data-mode="${source}"] select`); if(first)setTimeout(()=>first.focus(),30);
+    const first=modal.querySelector(i==='done'?`[data-step="done"] a`:`[data-step="${i}"][data-mode="${paneMode()}"] input, [data-step="${i}"][data-mode="${paneMode()}"] select`); if(first)setTimeout(()=>first.focus(),30);
     modal.querySelector('.box').scrollTop=0;
   }
   function valid(i){
-    const pane=modal.querySelector(`[data-step="${i}"][data-mode="${source}"]`), err=pane.querySelector('.err'); let msg='';
+    const pane=modal.querySelector(`[data-step="${i}"][data-mode="${paneMode()}"]`), err=pane.querySelector('.err'); let msg='';
     pane.querySelectorAll('input[required]').forEach(inp=>{if(!msg&&!inp.value.trim())msg='Please fill in '+inp.closest('.field').querySelector('label').childNodes[0].textContent.trim().toLowerCase()+'.'});
     const em=pane.querySelector('input[name=email]'); if(!msg&&em&&!/^\S+@\S+\.\S+$/.test(em.value))msg='Please check your email address — it looks incomplete.';
     if(source==='strategy'){
@@ -213,11 +216,11 @@ window.KM_CONFIG = {
     if(!valid(step))return;
     const steps=activeSteps();
     if(step<steps.length-1){show(step+1);return}
-    const d=data(); d.source=source; d.fit_score=fit(d); d.page=location.pathname; d.context=window.kmContext||null; d.submitted_at=new Date().toISOString();
-    const url=source==='strategy'?window.KM_CONFIG.STRATEGY_WEBHOOK_URL:window.KM_CONFIG.WEBHOOK_URL;
+    const d=data(); d.source=source==='free-redesign'?'free-website-redesign':source; d.fit_score=fit(d); d.page=location.pathname; d.context=window.kmContext||null; d.submitted_at=new Date().toISOString();
+    const url=source==='strategy'?window.KM_CONFIG.STRATEGY_WEBHOOK_URL:source==='free-redesign'?window.KM_CONFIG.FREE_REDESIGN_WEBHOOK_URL:window.KM_CONFIG.WEBHOOK_URL;
     if(url){try{await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})}catch(e){}}
     try{localStorage.removeItem('km-intake')}catch(e){}
-    modal.querySelector('#km-book').href=source==='strategy'?window.KM_CONFIG.STRATEGY_BOOKING_URL:window.KM_CONFIG.BOOKING_URL;
+    modal.querySelector('#km-book').href=source==='strategy'?window.KM_CONFIG.STRATEGY_BOOKING_URL:source==='free-redesign'?window.KM_CONFIG.FREE_REDESIGN_BOOKING_URL:window.KM_CONFIG.BOOKING_URL;
     show('done');
   }
   function saveDraft(){try{localStorage.setItem('km-intake',JSON.stringify(data()))}catch(e){}}
@@ -227,11 +230,11 @@ window.KM_CONFIG = {
   let lastFocus=null;
   function open(src){if(!modal)build(); source=src||'discovery'; lastFocus=document.activeElement; modal.hidden=false; document.documentElement.style.overflow='hidden';
     modal.querySelector('#km-form').reset(); loadDraft();
-    modal.querySelector('#km-eyebrow').textContent=source==='strategy'?'Book a strategy call':'Book a discovery call';
+    modal.querySelector('#km-eyebrow').textContent=source==='strategy'?'Book a strategy call':source==='free-redesign'?'Book a free website redesign call':'Book a discovery call';
     show(0);
-    if(window.kmPrefill){Object.entries(window.kmPrefill).forEach(([k,v])=>{modal.querySelectorAll(`[name="${k}"]`).forEach(el=>{if(el.value===v)el.checked=true})})}
+    if(window.kmPrefill){Object.entries(window.kmPrefill).forEach(([k,v])=>{modal.querySelectorAll(`[name="${k}"]`).forEach(el=>{if(el.type==='radio'||el.type==='checkbox'){if(el.value===v)el.checked=true}else el.value=v})})}
     updateStrategyPrices();}
   function close(){modal.hidden=true;document.documentElement.style.overflow='';if(lastFocus)lastFocus.focus()}
   window.kmOpenBooking=open;
-  document.addEventListener('click',e=>{const t=e.target.closest('[data-book]');if(t){e.preventDefault();const p=t.getAttribute('data-program'),b=t.getAttribute('data-billing');window.kmPrefill=(p||b)?{...(p?{program:p}:{}),...(b?{billing:b}:{})}:null;open(t.getAttribute('data-book'))}});
+  document.addEventListener('click',e=>{const t=e.target.closest('[data-book]');if(t){e.preventDefault();const p=t.getAttribute('data-program'),b=t.getAttribute('data-billing');if(p||b)window.kmPrefill={...(p?{program:p}:{}),...(b?{billing:b}:{})};open(t.getAttribute('data-book'))}});
 })();

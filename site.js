@@ -142,6 +142,7 @@ window.KM_CONFIG = {
   function data(){
     const f=new FormData(modal.querySelector('#km-form')), o={};
     for(const [k,v] of f.entries()){if(o[k]){o[k]=[].concat(o[k],v)}else o[k]=v}
+     ['services','challenges','tried'].forEach(k=>{if(o[k]&&!Array.isArray(o[k]))o[k]=[o[k]]});
     return o;
   }
   function fit(d){ // simple lead score for your CRM (0–100)

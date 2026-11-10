@@ -95,9 +95,9 @@ window.KM_CONFIG = {
   const STRATEGY_STEPS=[
     {title:"Which program?",note:"Pick the program you want to move forward with. You can change it on the call.",fields:`
       <div class="field"><span class="qlabel">Program you want to move forward with</span><div class="opts one">
-        <label class="opt"><input type="radio" name="program" value="Foundation"><span>Foundation — $722/mo</span></label>
-        <label class="opt"><input type="radio" name="program" value="Essential"><span>Essential — $1,167/mo</span></label>
-        <label class="opt"><input type="radio" name="program" value="Growth"><span>Growth — $1,944/mo</span></label>
+        <label class="opt"><input type="radio" name="program" value="Foundation"><span>Foundation — <span class="km-price" data-m="$722/mo" data-a="$650/mo">$722/mo</span></span></label>
+        <label class="opt"><input type="radio" name="program" value="Essential"><span>Essential — <span class="km-price" data-m="$1,167/mo" data-a="$1,050/mo">$1,167/mo</span></span></label>
+        <label class="opt"><input type="radio" name="program" value="Growth"><span>Growth — <span class="km-price" data-m="$1,944/mo" data-a="$1,750/mo">$1,944/mo</span></span></label>
       </div></div>
       <div class="field"><span class="qlabel">Billing</span><div class="opts">
         <label class="opt"><input type="radio" name="billing" value="Monthly"><span>Monthly</span></label>
@@ -121,6 +121,11 @@ window.KM_CONFIG = {
       <div class="field"><label for="km-s-city">City and province</label><input id="km-s-city" name="city" type="text" placeholder="e.g. Surrey, BC" required></div>`}
   ];
   function activeSteps(){return source==='strategy'?STRATEGY_STEPS:STEPS}
+  function updateStrategyPrices(){ // program cards follow the picked billing (monthly vs annual)
+    const b=modal.querySelector('[name=billing]:checked');
+    const annual=b&&b.value==='Annual';
+    modal.querySelectorAll('.km-price').forEach(el=>{el.textContent=annual?el.dataset.a:el.dataset.m});
+  }
   function opt(type,name,label){const id='km-'+name+'-'+label.replace(/[^a-z0-9]+/gi,'-').toLowerCase();
     return `<label class="opt"><input type="${type}" name="${name}" id="${id}" value="${label.replace(/"/g,'&quot;')}"><span>${label}</span></label>`}
 
@@ -149,6 +154,7 @@ window.KM_CONFIG = {
     modal.querySelector('#km-form').addEventListener('submit',e=>{e.preventDefault();next()});
     modal.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
     modal.querySelector('#km-form').addEventListener('input',saveDraft);
+    modal.addEventListener('change',e=>{if(e.target.name==='billing')updateStrategyPrices()});
     loadDraft();
   }
   function show(i){
@@ -223,7 +229,8 @@ window.KM_CONFIG = {
     modal.querySelector('#km-form').reset(); loadDraft();
     modal.querySelector('#km-eyebrow').textContent=source==='strategy'?'Book a strategy call':'Book a discovery call';
     show(0);
-    if(window.kmPrefill){Object.entries(window.kmPrefill).forEach(([k,v])=>{modal.querySelectorAll(`[name="${k}"]`).forEach(el=>{if(el.value===v)el.checked=true})})}}
+    if(window.kmPrefill){Object.entries(window.kmPrefill).forEach(([k,v])=>{modal.querySelectorAll(`[name="${k}"]`).forEach(el=>{if(el.value===v)el.checked=true})})}
+    updateStrategyPrices();}
   function close(){modal.hidden=true;document.documentElement.style.overflow='';if(lastFocus)lastFocus.focus()}
   window.kmOpenBooking=open;
   document.addEventListener('click',e=>{const t=e.target.closest('[data-book]');if(t){e.preventDefault();const p=t.getAttribute('data-program'),b=t.getAttribute('data-billing');window.kmPrefill=(p||b)?{...(p?{program:p}:{}),...(b?{billing:b}:{})}:null;open(t.getAttribute('data-book'))}});

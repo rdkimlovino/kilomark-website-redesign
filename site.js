@@ -2,10 +2,10 @@
    ── EDIT THESE BEFORE GOING LIVE ───────────────────────────── */
 window.KM_CONFIG = {
   // Your TidyCal booking page for the discovery call
-  BOOKING_URL: "https://tidycal.com/kilomark/discovery-call",
+  BOOKING_URL: "https://schedule.kilomark.ca/discovery-call",
   // Optional: GHL / Albato inbound webhook that receives the intake answers as JSON.
   // Leave empty to skip. On WordPress this posts before the booking link appears.
-  WEBHOOK_URL: ""
+  WEBHOOK_URL: "https://h.albato.com/wh/38/1lfvuqt/iqItgrE5uVlLm-XebYnifDmrL7keZWht4d-_taczTyI/"
 };
 /* ─────────────────────────────────────────────────────────── */
 

@@ -195,8 +195,20 @@ window.KM_CONFIG = {
     err.hidden=!msg; err.textContent=msg; return !msg;
   }
   function data(){
-    const f=new FormData(modal.querySelector('#km-form')), o={};
-    for(const [k,v] of f.entries()){if(o[k]){o[k]=[].concat(o[k],v)}else o[k]=v}
+    // Read only the ACTIVE mode's panes. The modal holds both the discovery
+    // steps and the strategy steps in the DOM, and several field names are
+    // shared (name/email/phone/clinic/city/goal/timeline). A plain FormData
+    // read would collect both copies and send arrays like ["Kim",""] — the
+    // free-redesign Albato flow rendered those blank and GHL rejected them.
+    const o={};
+    modal.querySelectorAll('#km-form input, #km-form select, #km-form textarea').forEach(el=>{
+      if(!el.name||el.disabled)return;
+      const pane=el.closest('[data-mode]');
+      if(pane&&pane.getAttribute('data-mode')!==paneMode())return;
+      if((el.type==='radio'||el.type==='checkbox')&&!el.checked)return;
+      const v=el.value;
+      if(o[el.name]!==undefined){o[el.name]=[].concat(o[el.name],v)}else o[el.name]=v;
+    });
      ['services','challenges','tried'].forEach(k=>{if(o[k]&&!Array.isArray(o[k]))o[k]=[o[k]]});
     return o;
   }

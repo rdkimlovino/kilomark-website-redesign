@@ -399,3 +399,41 @@ input[type=range]{width:100%;accent-color:var(--blue);height:26px}
 .to-top:hover{background:var(--blue);transform:translateY(-2px)}
 .to-top svg{width:22px;height:22px}
 @media (max-width:520px){.float-cta{padding:14px 18px;font-size:13px}.float-cta .cta-long{display:none}.float-cta .cta-short{display:inline}.to-top{width:46px;height:46px}}
+
+/* ---------- discovery form: clickable stepper + resume (Nov 2026) ---------- */
+.progress{display:flex;gap:6px;list-style:none;margin:0;padding:0}
+.progress li{flex:1;min-width:0}
+.step-btn{display:flex;flex-direction:column;gap:6px;width:100%;background:none;border:0;padding:0;cursor:pointer;font-family:var(--font);text-align:left}
+.step-btn i{height:4px;border-radius:4px;background:var(--line);display:block;transition:background .15s}
+.step-btn span{font-size:11px;font-weight:700;letter-spacing:.02em;color:var(--mid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.step-btn.on i{background:var(--blue)}
+.step-btn.current span{color:var(--blue)}
+.step-btn:disabled{cursor:not-allowed;opacity:.55}
+.step-btn:disabled i{background:var(--line)}
+.step-btn:focus-visible{outline:3px solid var(--blue);outline-offset:2px;border-radius:4px}
+.skip{background:none;border:0;padding:4px 0;font-family:var(--font);font-size:14px;font-weight:600;color:var(--blue);cursor:pointer;text-align:left;text-decoration:underline;text-underline-offset:3px;align-self:flex-start}
+.skip:hover{color:var(--blue-dark)}
+/* Resume pill: pulsating red, high contrast. Never shown after submit. */
+.km-resume{position:fixed;z-index:70;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;gap:4px;background:var(--red);border-radius:100px;box-shadow:0 14px 30px -10px rgba(174,31,31,.6);max-width:calc(100vw - 32px)}
+.km-resume[hidden]{display:none}
+.km-resume-go{border:0;background:none;color:var(--white);font-family:var(--font);font-size:14px;font-weight:700;letter-spacing:.02em;padding:15px 8px 15px 22px;cursor:pointer;text-align:left;line-height:1.25}
+.km-resume-x{border:0;background:none;color:rgba(255,255,255,.75);font-size:22px;line-height:1;padding:12px 16px 12px 6px;cursor:pointer;flex-shrink:0}
+.km-resume-x:hover{color:var(--white)}
+@media (prefers-reduced-motion:no-preference){
+  .km-resume{animation:km-pulse 2s ease-out infinite}
+  @keyframes km-pulse{
+    0%{box-shadow:0 0 0 0 rgba(174,31,31,.45),0 14px 30px -10px rgba(174,31,31,.6);background:#AE1F1F}
+    50%{background:#8E1818}
+    70%{box-shadow:0 0 0 16px rgba(174,31,31,0),0 14px 30px -10px rgba(174,31,31,.6)}
+    100%{box-shadow:0 0 0 0 rgba(174,31,31,0),0 14px 30px -10px rgba(174,31,31,.6);background:#AE1F1F}
+  }
+}
+/* Modal: mobile sizing — tall tap targets, no horizontal scroll */
+.modal .box{max-height:calc(100dvh - 32px)}
+.modal .foot .btn{min-height:48px}
+@media (max-width:520px){
+  .km-resume{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+  .km-resume-go{font-size:13px;padding:14px 6px 14px 18px}
+  .step-btn span{font-size:10px}
+  .opt span{font-size:16px}
+}

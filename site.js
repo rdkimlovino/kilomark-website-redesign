@@ -50,7 +50,7 @@ window.KM_CONFIG = {
 
   /* ---------------- discovery call intake ---------------- */
   const STEPS=[
-    {title:"Tell us about you",note:"Takes about 90 seconds. Then you pick a time.",fields:`
+    {title:"Tell us about you",note:"Then you pick a time.",fields:`
       <div class="two">
         <div class="field"><label for="km-name">Your name</label><input id="km-name" name="name" type="text" autocomplete="name" required></div>
         <div class="field"><label for="km-role">Your role</label><select id="km-role" name="role"><option>Clinic owner</option><option>Co-owner / partner</option><option>Clinic director / manager</option><option>Other</option></select></div>
@@ -91,7 +91,8 @@ window.KM_CONFIG = {
         ${opt('radio','timeline','As soon as possible')}${opt('radio','timeline','In the next 1–3 months')}${opt('radio','timeline','3+ months out')}${opt('radio','timeline','Just exploring')}
       </div></div>
       <div class="field"><label for="km-goal">What would a great next 90 days look like? <span class="hint">(optional)</span></label>
-        <textarea id="km-goal" name="goal" placeholder="e.g. 15 more new patients a month, fill our new pelvic health program, rank for physio in Langley"></textarea></div>`}
+        <textarea id="km-goal" name="goal" placeholder="e.g. 15 more new patients a month, fill our new pelvic health program, rank for physio in Langley"></textarea>
+        <button type="button" class="skip" data-skip>Skip for now — I'll share it on the call →</button></div>`}
   ];
   /* ---------------- strategy call intake (after a discovery call) ---------------- */
   const STRATEGY_STEPS=[
@@ -132,15 +133,18 @@ window.KM_CONFIG = {
   function opt(type,name,label){const id='km-'+name+'-'+label.replace(/[^a-z0-9]+/gi,'-').toLowerCase();
     return `<label class="opt"><input type="${type}" name="${name}" id="${id}" value="${label.replace(/"/g,'&quot;')}"><span>${label}</span></label>`}
 
-  let modal=null, step=0, source='discovery';
+  let modal=null, step=0, source='discovery', maxStep=0;
+  // Short labels for the clickable stepper (discovery: 4 steps, strategy: 3).
+  const STEP_SHORT={discovery:['About you','Clinic','Stuck','Goals'],strategy:['Program','Plan','Details']};
+  const DRAFT_KEY='km-intake', DRAFT_TTL_MS=30*24*3600*1000;
   function build(){
     modal=document.createElement('div');modal.className='modal';modal.hidden=true;modal.setAttribute('role','dialog');modal.setAttribute('aria-modal','true');modal.setAttribute('aria-labelledby','km-title');
     modal.innerHTML=`<div class="scrim" data-close></div><form class="box" id="km-form" novalidate>
       <div class="top"><div class="row"><div><span class="eyebrow" id="km-eyebrow" style="margin-bottom:8px">Book a discovery call</span><h2 id="km-title"></h2></div>
       <button type="button" class="close" data-close aria-label="Close">×</button></div>
-      <div class="progress" aria-hidden="true"><i></i><i></i><i></i><i></i></div><div class="stepnote" id="km-note"></div></div>
-      ${STEPS.map((s,i)=>`<div class="body" data-mode="discovery" data-step="${i}" hidden>${s.fields}<p class="err" hidden></p></div>`).join('')}
-      ${STRATEGY_STEPS.map((s,i)=>`<div class="body" data-mode="strategy" data-step="${i}" hidden>${s.fields}<p class="err" hidden></p></div>`).join('')}
+      <ol class="progress" id="km-steps" aria-label="Form steps"></ol><div class="stepnote" id="km-note"></div></div>
+      ${STEPS.map((s,i)=>`<div class="body" data-mode="discovery" data-step="${i}" hidden>${s.fields}<p class="err" aria-live="polite" hidden></p></div>`).join('')}
+      ${STRATEGY_STEPS.map((s,i)=>`<div class="body" data-mode="strategy" data-step="${i}" hidden>${s.fields}<p class="err" aria-live="polite" hidden></p></div>`).join('')}
       <div class="body" data-step="done" hidden>
         <div class="done-mark"></div>
         <h3 id="km-done-title" style="font-size:26px;font-weight:700;letter-spacing:-.02em">Thanks. Last step: pick a time.</h3>
@@ -157,20 +161,49 @@ window.KM_CONFIG = {
     modal.querySelector('#km-form').addEventListener('submit',e=>{e.preventDefault();next()});
     modal.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
     modal.querySelector('#km-form').addEventListener('input',saveDraft);
-    modal.addEventListener('change',e=>{if(e.target.name==='billing')updateStrategyPrices()});
+    modal.addEventListener('change',e=>{if(e.target.name==='billing')updateStrategyPrices();saveDraft();if(e.target.type==='radio')maybeAutoAdvance()});
+    modal.querySelector('#km-form').addEventListener('click',e=>{if(e.target.closest('[data-skip]')){e.preventDefault();next()}});
     loadDraft();
   }
+  // Clickable stepper: jump back to any visited step; forward only to the
+  // next step, and only if the current step validates. Never skips ahead.
+  function renderStepper(){
+    const ol=modal.querySelector('#km-steps'); if(!ol) return;
+    const steps=activeSteps(), labels=source==='strategy'?STEP_SHORT.strategy:STEP_SHORT.discovery;
+    ol.innerHTML='';
+    steps.forEach((s,i)=>{
+      const li=document.createElement('li');
+      const b=document.createElement('button');
+      b.type='button'; b.className='step-btn';
+      b.innerHTML=`<i></i><span>${labels[i]||s.title}</span>`;
+      b.setAttribute('aria-label',`Step ${i+1} of ${steps.length}: ${s.title}`);
+      const canGo=(typeof step==='number'&&(i<=maxStep||i===step+1))||step==='done';
+      b.disabled=!canGo;
+      if(typeof step==='number'&&i===step)b.setAttribute('aria-current','step');
+      b.classList.toggle('on',step==='done'||(typeof step==='number'&&i<=step));
+      b.classList.toggle('current',typeof step==='number'&&i===step);
+      b.addEventListener('click',()=>{
+        if(i<=maxStep||step==='done'){show(i);return}
+        if(typeof step==='number'&&i===step+1&&valid(step))show(step+1);
+      });
+      li.appendChild(b); ol.appendChild(li);
+    });
+  }
   function show(i){
-    if(i<0)i=0; step=i;
+    if(i<0)i=0;
+    if(typeof i==='number'&&i>=activeSteps().length)i=activeSteps().length-1; // defensive clamp
+    step=i;
+    if(typeof i==='number')maxStep=Math.max(maxStep,i);
     const steps=activeSteps();
     modal.querySelectorAll('[data-step]').forEach(el=>{el.hidden=el.dataset.step==='done'?i!=='done':(el.dataset.mode!==paneMode()||String(el.dataset.step)!==String(i))});
     const done=i==='done';
     modal.querySelector('#km-title').textContent=done?'You\'re almost booked':steps[i].title;
-    modal.querySelector('#km-note').textContent=done?'':`Step ${i+1} of ${steps.length} · ${steps[i].note}`;
-    modal.querySelectorAll('.progress i').forEach((b,n)=>{b.style.display=n<steps.length?'':'none';b.classList.toggle('on',done||n<=i)});
+    modal.querySelector('#km-note').textContent=done?'':`Step ${i+1} of ${steps.length} · ~90 seconds · ${steps[i].note}`;
+    renderStepper();
     modal.querySelector('.foot').hidden=done;
-    modal.querySelector('#km-back').style.visibility=i===0?'hidden':'visible';
+    modal.querySelector('#km-back').style.visibility=i===0||done?'hidden':'visible';
     modal.querySelector('#km-next').textContent=i===steps.length-1?'See available times':'Next';
+    if(typeof i==='number')saveDraft(); // persist the step too, so a close resumes here
     if(done){
       const s=source==='strategy', f=source==='free-redesign';
       modal.querySelector('#km-done-sub').textContent=s?'Your answers are in. Choose a 30-minute slot for your strategy call. On the call we\'ll cover:':f?'Your answers are in. Choose a 30-minute slot for your free website redesign call. On the call we\'ll cover:':'Your answers are in. Choose a 30-minute slot for your discovery call. On the call we\'ll cover:';
@@ -192,7 +225,32 @@ window.KM_CONFIG = {
       if(!msg&&i===2&&!pane.querySelector('[name=challenges]:checked'))msg='Pick at least one challenge so we can prepare.';
       if(!msg&&i===3){if(!pane.querySelector('[name=budget]:checked'))msg='Choose a budget range. A rough idea is fine.';else if(!pane.querySelector('[name=timeline]:checked'))msg='Choose when you\'d like to start.'}
     }
-    err.hidden=!msg; err.textContent=msg; return !msg;
+    err.hidden=!msg; err.textContent=msg;
+    if(msg){ // move focus to the first thing that needs attention
+      const empty=[...pane.querySelectorAll('input[required]')].find(inp=>!inp.value.trim());
+      (empty||pane.querySelector('input,select,textarea')).focus();
+    }
+    return !msg;
+  }
+  // Auto-advance on radio steps once every required group on the step is
+  // answered (step 2 has two groups, so it waits for both). Checkboxes never
+  // auto-advance — the user may want to pick several.
+  let advTimer=null;
+  function maybeAutoAdvance(){
+    if(typeof step!=='number')return;
+    const pane=modal.querySelector(`[data-step="${step}"][data-mode="${paneMode()}"]`); if(!pane)return;
+    let ready=false;
+    if(source==='strategy'){
+      if(step===0)ready=!!(pane.querySelector('[name=program]:checked')&&pane.querySelector('[name=billing]:checked'));
+      else if(step===1)ready=!!pane.querySelector('[name=timeline]:checked');
+    }else{
+      if(step===1)ready=!!(pane.querySelector('[name=clinic_type]:checked')&&pane.querySelector('[name=therapists]:checked'));
+      else if(step===3)ready=!!(pane.querySelector('[name=budget]:checked')&&pane.querySelector('[name=timeline]:checked'));
+    }
+    if(!ready)return;
+    clearTimeout(advTimer);
+    const from=step;
+    advTimer=setTimeout(()=>{if(step===from&&step<activeSteps().length-1&&valid(step))show(step+1)},380);
   }
   function data(){
     // Read only the ACTIVE mode's panes. The modal holds both the discovery
@@ -231,22 +289,86 @@ window.KM_CONFIG = {
     const d=data(); d.source=source==='free-redesign'?'free-website-redesign':source; d.fit_score=fit(d); d.page=location.pathname; d.context=window.kmContext||null; d.submitted_at=new Date().toISOString();
     const url=source==='strategy'?window.KM_CONFIG.STRATEGY_WEBHOOK_URL:source==='free-redesign'?window.KM_CONFIG.FREE_REDESIGN_WEBHOOK_URL:window.KM_CONFIG.WEBHOOK_URL;
     if(url){try{await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)})}catch(e){}}
-    try{localStorage.removeItem('km-intake')}catch(e){}
+    clearDraft(); // submitted — never show the resume pill again for this draft
     modal.querySelector('#km-book').href=source==='strategy'?window.KM_CONFIG.STRATEGY_BOOKING_URL:source==='free-redesign'?window.KM_CONFIG.FREE_REDESIGN_BOOKING_URL:window.KM_CONFIG.BOOKING_URL;
     show('done');
+    refreshResumeUI();
   }
-  function saveDraft(){try{localStorage.setItem('km-intake',JSON.stringify(data()))}catch(e){}}
-  function loadDraft(){let d;try{d=JSON.parse(localStorage.getItem('km-intake')||'null')}catch(e){}
-    if(!d)return; Object.entries(d).forEach(([k,v])=>{[].concat(v).forEach(val=>{
+  // Draft persistence: answers + current step + furthest step + source mode.
+  // Stored under the existing km-intake key. New format is {v:1,source,step,
+  // maxStep,updated_at,data:{...}}; old flat {name:...,services:[...]} drafts
+  // are still read (treated as a step-0 discovery draft).
+  function readDraft(){
+    let d; try{d=JSON.parse(localStorage.getItem(DRAFT_KEY)||'null')}catch(e){return null}
+    if(!d||typeof d!=='object'||Array.isArray(d))return null;
+    if(d.v===1&&d.data){
+      if(d.updated_at&&Date.now()-new Date(d.updated_at).getTime()>DRAFT_TTL_MS)return null;
+      return d;
+    }
+    return {v:0,source:'discovery',step:0,maxStep:0,updated_at:null,data:d};
+  }
+  function draftHasAnswers(d){
+    return !!(d&&d.data&&Object.keys(d.data).some(k=>{const v=d.data[k];return Array.isArray(v)?v.length>0:String(v||'').trim()!==''}));
+  }
+  function clearDraft(){try{localStorage.removeItem(DRAFT_KEY)}catch(e){}}
+  function saveDraft(){
+    try{
+      localStorage.setItem(DRAFT_KEY,JSON.stringify({v:1,source,step:typeof step==='number'?step:0,maxStep,updated_at:new Date().toISOString(),data:data()}));
+    }catch(e){}
+  }
+  function loadDraft(){
+    const d=readDraft(); if(!d||!draftHasAnswers(d))return;
+    Object.entries(d.data).forEach(([k,v])=>{[].concat(v).forEach(val=>{
       const els=modal.querySelectorAll(`[name="${k}"]`); els.forEach(el=>{if(el.type==='radio'||el.type==='checkbox'){if(el.value===val)el.checked=true}else el.value=val})})})}
+  // Resume pill + CTA swap. Shown only while an unfinished draft exists.
+  let resumeEl=null;
+  function ensureResumeEl(){
+    if(resumeEl)return resumeEl;
+    resumeEl=document.createElement('div'); resumeEl.className='km-resume'; resumeEl.hidden=true;
+    resumeEl.innerHTML=`<button type="button" class="km-resume-go"></button><button type="button" class="km-resume-x" aria-label="Hide this reminder">×</button>`;
+    resumeEl.querySelector('.km-resume-go').addEventListener('click',()=>{const d=readDraft();if(d)open(d.source||'discovery')});
+    resumeEl.querySelector('.km-resume-x').addEventListener('click',()=>{try{sessionStorage.setItem('km-resume-hidden','1')}catch(e){}resumeEl.hidden=true});
+    document.body.appendChild(resumeEl); return resumeEl;
+  }
+  function swapCtas(on){
+    document.querySelectorAll('[data-book="discovery"]').forEach(el=>{
+      const long=el.querySelector('.cta-long'), short=el.querySelector('.cta-short');
+      if(long){
+        if(el.dataset.kmOrig===undefined)el.dataset.kmOrig=long.textContent;
+        long.textContent=on?'Continue your discovery call':el.dataset.kmOrig;
+        if(short){if(el.dataset.kmOrigShort===undefined)el.dataset.kmOrigShort=short.textContent;short.textContent=on?'Continue call':el.dataset.kmOrigShort}
+      }else{
+        if(el.dataset.kmOrig===undefined)el.dataset.kmOrig=el.textContent;
+        el.textContent=on?'Continue your discovery call':el.dataset.kmOrig;
+      }
+    });
+  }
+  function refreshResumeUI(){
+    const d=readDraft(), has=draftHasAnswers(d), pill=ensureResumeEl();
+    if(!has){pill.hidden=true;swapCtas(false);return}
+    const steps=d.source==='strategy'?STRATEGY_STEPS:STEPS;
+    const s=Math.min(d.step||0,steps.length-1);
+    const label=d.source==='strategy'?'Continue your strategy call':d.source==='free-redesign'?'Continue your free redesign call':'Continue your discovery call';
+    pill.querySelector('.km-resume-go').textContent=`${label} — you're on step ${s+1} of ${steps.length}`;
+    let dismissed=false; try{dismissed=sessionStorage.getItem('km-resume-hidden')==='1'}catch(e){}
+    pill.hidden=dismissed;
+    swapCtas(d.source==='discovery'); // only discovery CTAs change; strategy/free-redesign resume via the pill
+  }
   let lastFocus=null;
   function open(src){if(!modal)build(); source=src||'discovery'; lastFocus=document.activeElement; modal.hidden=false; document.documentElement.style.overflow='hidden';
     modal.querySelector('#km-form').reset(); loadDraft();
     modal.querySelector('#km-eyebrow').textContent=source==='strategy'?'Book a strategy call':source==='free-redesign'?'Book a free website redesign call':'Book a discovery call';
-    show(0);
+    // Resume where the visitor left off — but only for the same mode, so a
+    // discovery draft never leaks into the strategy or free-redesign form.
+    let resumeStep=0; maxStep=0;
+    const d=readDraft();
+    if(d&&(d.source===source||(!d.source&&source==='discovery'))){resumeStep=Math.min(d.step||0,activeSteps().length-1);maxStep=Math.min(d.maxStep||resumeStep,activeSteps().length-1)}
+    show(resumeStep);
     if(window.kmPrefill){Object.entries(window.kmPrefill).forEach(([k,v])=>{modal.querySelectorAll(`[name="${k}"]`).forEach(el=>{if(el.type==='radio'||el.type==='checkbox'){if(el.value===v)el.checked=true}else el.value=v})})}
-    updateStrategyPrices();}
-  function close(){modal.hidden=true;document.documentElement.style.overflow='';if(lastFocus)lastFocus.focus()}
+    updateStrategyPrices();
+    saveDraft();}
+  function close(){modal.hidden=true;document.documentElement.style.overflow='';if(lastFocus)lastFocus.focus();refreshResumeUI()}
   window.kmOpenBooking=open;
   document.addEventListener('click',e=>{const t=e.target.closest('[data-book]');if(t){e.preventDefault();const p=t.getAttribute('data-program'),b=t.getAttribute('data-billing');if(p||b)window.kmPrefill={...(p?{program:p}:{}),...(b?{billing:b}:{})};open(t.getAttribute('data-book'))}});
+  refreshResumeUI(); // show the Continue pill on load if a draft is waiting
 })();

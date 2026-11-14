@@ -315,6 +315,18 @@ textarea{min-height:96px;resize:vertical}
 .opt input:checked + span{border-color:var(--blue);background:var(--blue-tint);color:var(--blue-dark)}
 .opt input:checked + span::before{border-color:var(--blue);background:var(--blue);box-shadow:inset 0 0 0 3px var(--white)}
 .opt input:focus-visible + span{outline:3px solid var(--blue);outline-offset:2px}
+.opts.cards{grid-template-columns:1fr}
+.opt.card span{display:grid;grid-template-columns:18px 1fr;column-gap:10px;align-items:start;padding:16px 14px;min-height:64px}
+.opt.card span::before{grid-column:1;grid-row:1/span 2;margin-top:3px}
+.opt.card b{grid-column:2;grid-row:1;font-weight:700;font-size:16px;line-height:1.3}
+.opt.card small{grid-column:2;grid-row:2;display:block;font-size:13px;font-weight:500;color:var(--mid);line-height:1.35;margin-top:2px}
+.opt.card input:checked + span small{color:var(--blue-dark)}
+/* No horizontal scroll at small widths: the homepage's decorative
+   .ring/.tile-deco/.phone art extends past 390px and made the whole page
+   407px wide. Clip it at the page level (clip, not hidden, so sticky
+   positioning elsewhere keeps working). */
+html,body{overflow-x:clip}
+@supports not (overflow:clip){html,body{overflow-x:hidden}}
 @media (max-width:520px){.opts{grid-template-columns:1fr}}
 .err{color:var(--red);font-size:14px;font-weight:600}
 

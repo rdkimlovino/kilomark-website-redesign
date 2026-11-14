@@ -437,3 +437,23 @@ input[type=range]{width:100%;accent-color:var(--blue);height:26px}
   .step-btn span{font-size:10px}
   .opt span{font-size:16px}
 }
+
+/* Article pages (blog posts, terms & privacy) — added Nov 14, 2026 for the
+   rebuilt WordPress posts. Additive only; no existing selector touched. */
+.article{max-width:76ch;margin:0 auto}
+.article>*+*{margin-top:1.1em}
+.article p{color:var(--ink-2)}
+.article h2{font-size:clamp(1.6rem,3vw,2.3rem);line-height:1.1;margin-top:1.7em}
+.article h3{margin-top:1.5em}
+.article ul,.article ol{margin:0;padding-left:1.3em;display:grid;gap:.5em;color:var(--ink-2)}
+.article li::marker{color:var(--blue);font-weight:700}
+.article figure{margin:2em 0}
+.article figure img{border-radius:var(--r);width:100%}
+.article .table-wrap{overflow-x:auto;margin:1.6em 0}
+.article table{width:100%;border-collapse:collapse;font-size:15px}
+.article th,.article td{border:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top}
+.article th{background:var(--grey);font-weight:700}
+.article td{color:var(--ink-2)}
+.article .video{position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:var(--r);margin:1.6em 0}
+.article .video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.article-hero h1{font-size:clamp(2rem,4.4vw,3.4rem);line-height:1.05}
